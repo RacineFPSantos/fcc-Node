@@ -18,37 +18,46 @@ app.get("/", function (req, res) {
   res.sendFile(__dirname + '/views/index.html');
 });
 
-
 // your first API endpoint... 
 app.get("/api/hello", function (req, res) {
   res.json({greeting: 'hello API'});
 });
 
-app.get("/api/:date?", (req, res) => {
-  const date = req.params.date;
-
-  let inputDate = date ? new Date(date) : new Date();
-
-  var jsonRes = { 
-    unix: inputDate,
-    utc: inputDate
+//Timestamp Microservice
+const isDateValid = (date) => date.toUTCString() === 'Invalid Date';
+app.get("/api/:date?", (req, res) => {  
+  if(req.params.date === undefined || 
+    req.params.date === null || 
+    req.params.date === '') {
+    return res.json({ 
+      unix: Date.now(),
+      utc: Date.now()
+    })
   }
 
-  if(date === undefined) {
-    return res.json(jsonRes);
+  var inputDate = new Date(req.params.date);
+
+  if(isDateValid(inputDate)) {
+    inputDate = new Date(Number(req.params.date));
   }
 
-  if (!inputDate || isNaN(inputDate.getTime())) {
-    return res.json({ error: 'Invalid date' });
+  if(isDateValid(inputDate)) {
+    return res.json({ error: 'Invalid date' });    
   }
 
-  jsonRes.unix = inputDate.getTime();
-  jsonRes.utc = inputDate.toUTCString();
-  return res.json(jsonRes);
+  return res.json({ 
+    unix: inputDate.getTime(),
+    utc: inputDate.toUTCString()
+  });
 });
 
-app.get("/api/1451001600000", (req, res) => {
-  return res.json({ unix: 1451001600000, utc: "Fri, 25 Dec 2015 00:00:00 GMT" })
+//Request Header Parser Microservice
+app.get('/api/whoami', function (req, res) {
+  res.json({ 
+    ipaddress: req.ip,
+    languages: req.acceptsLanguages(),
+    software: req.headers['user-agent'],
+  })
 });
 
 // Listen on port set in environment variable or default to 3000
