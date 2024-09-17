@@ -55,7 +55,7 @@ app.get("/api/:date?", (req, res) => {
 app.get('/api/whoami', function (req, res) {
   res.json({ 
     ipaddress: req.ip,
-    languages: req.acceptsLanguages(),
+    language: req.acceptsLanguages(),
     software: req.headers['user-agent'],
   })
 });
