@@ -1,28 +1,32 @@
-// init project - This Boilerplate code maybe needs updates
 require('dotenv').config();
 var express = require('express');
 var app = express();
 
-// enable CORS (https://en.wikipedia.org/wiki/Cross-origin_resource_sharing)
-// so that your API is remotely testable by FCC 
 var cors = require('cors');
-
 const dns = require('dns');
-const bodyParser = require('body-parser');
-const urlParser = require('url');
+// const bodyParser = require('body-parser');
 
-app.use(cors({optionsSuccessStatus: 200}));  // some legacy browsers choke on 204
+ // some legacy browsers choke on 204
+app.use(cors({optionsSuccessStatus: 200})); 
 
-// http://expressjs.com/en/starter/static-files.html
 app.use(express.static('public'));
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+//BodyParser is depreciateded
+// app.use(bodyParser.json());
+// app.use(bodyParser.urlencoded({ extended: true }));
 
-// http://expressjs.com/en/starter/basic-routing.html
+//this is the correct way now
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 app.get("/", function (req, res) {
   res.sendFile(__dirname + '/views/index.html');
 });
+
+//Aux methods
+const generateRamdomId = () => {
+  return Math.random().toString(36).substring(7); 
+}
 
 // your first API endpoint... 
 app.get("/api/hello", function (req, res) {
@@ -88,16 +92,12 @@ const checkUrlExists = async (url) => {
   });
 }
 
-const generateShortUrl = () => {
-  return Math.random().toString(36).substring(7); 
-}
-
 app.post('/api/shorturl', async (req, res) => {
   const { url } = req.body;
   const isValid = await checkUrlExists(url);
 
   if(isValid) {
-    const shortUrl = generateShortUrl();
+    const shortUrl = generateRamdomId();
     const shortJson = { 
       original_url : url, 
       short_url : shortUrl
@@ -113,11 +113,51 @@ app.post('/api/shorturl', async (req, res) => {
 app.get('/api/shorturl/:shortUrl', async (req, res) => {
   const shortUrl = req.params.shortUrl;
   const urlEntry = urlDatabase.find(entry => entry.short_url === shortUrl);
+
   if (urlEntry) {
     res.redirect(urlEntry.original_url);
   } else {
     res.status(404).json({ message: 'Short URL not found' });
   }
+});
+
+//Exercise Tracker
+const fakeDBUsers = [];
+const fakeDBExercises = [];
+const fakeDBLogs = [];
+
+app.post('/api/users', (req, res) => {
+  const { username } = req.body;
+  const genId = generateRamdomId();
+  
+  var userJson = {
+    username: username,
+    _id: genId
+  }
+  
+  fakeDBUsers.push(userJson);
+  return res.json(userJson);
+});
+
+app.post('/api/users/:_id/exercises', (req, res) => {
+  const exercisesId = req.params._id;
+  const { username, description, duration, date } = req.body;
+
+  console.log(username, exercisesId, description, duration, date)
+
+  var exercise = {
+    _id: exercisesId,
+    description: description,
+    duration: duration,
+    date: date === undefined ? new Date() : new Date(date)
+  }
+
+  fakeDBExercises.push(exercise);
+  return res.json(exercise);
+});
+
+app.get('/api/users/:_id/logs', (req, res) => {
+  return res.json({ })
 });
 
 // Listen on port set in environment variable or default to 3000
