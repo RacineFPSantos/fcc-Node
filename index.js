@@ -1,13 +1,16 @@
-// index.js
-// where your node app starts
-
-// init project
+// init project - This Boilerplate code maybe needs updates
+require('dotenv').config();
 var express = require('express');
 var app = express();
 
 // enable CORS (https://en.wikipedia.org/wiki/Cross-origin_resource_sharing)
 // so that your API is remotely testable by FCC 
 var cors = require('cors');
+
+const dns = require('dns');
+const bodyParser = require('body-parser');
+const urlParser = require('url');
+
 app.use(cors({optionsSuccessStatus: 200}));  // some legacy browsers choke on 204
 
 // http://expressjs.com/en/starter/static-files.html
@@ -58,6 +61,60 @@ app.get('/api/whoami', function (req, res) {
     language: req.acceptsLanguages(),
     software: req.headers['user-agent'],
   })
+});
+
+//URL Shortener Microservice
+const urlDatabase = []; //Fake Database
+
+const checkUrlExists = async (url) => {
+  return new Promise((resolve, rejects) => {
+    try {
+      const hostname = new URL(url).hostname;
+
+      if(!hostname) {
+        return resolve(false);
+      }
+  
+      dns.lookup(hostname, (err) => {
+        return err ? resolve(false) : resolve(true);
+      });
+    } catch (error) {
+      console.log("checkUrlExists::ERROR: ", error);
+      resolve(false);
+    }
+  });
+}
+
+const generateShortUrl = () => {
+  return Math.random().toString(36).substring(7); 
+}
+
+app.post('/api/shorturl', async (req, res) => {
+  const { url } = req.body;
+  const isValid = await checkUrlExists(url);
+
+  if(isValid) {
+    const shortUrl = generateShortUrl();
+    const shortJson = { 
+      original_url : url, 
+      short_url : shortUrl
+    }
+
+    urlDatabase.push(shortJson);
+    return res.json(shortJson);
+  } else {
+    return res.json({ error: 'invalid url' })
+  }
+});
+
+app.get('/api/shorturl/:shortUrl', async (req, res) => {
+  const shortUrl = req.params.shortUrl;
+  const urlEntry = urlDatabase.find(entry => entry.short_url === shortUrl);
+  if (urlEntry) {
+    res.redirect(urlEntry.original_url);
+  } else {
+    res.status(404).json({ message: 'Short URL not found' });
+  }
 });
 
 // Listen on port set in environment variable or default to 3000
