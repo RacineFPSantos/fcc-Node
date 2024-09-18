@@ -25,7 +25,14 @@ app.get("/", function (req, res) {
 
 //Aux methods
 const generateRamdomId = () => {
-  return Math.random().toString(36).substring(7); 
+  const randomBytes = new Uint8Array(24);
+  crypto.getRandomValues(randomBytes);
+
+  const hexId = Array.from(randomBytes)
+    .map(byte => byte.toString(16).padStart(2, '0'))
+    .join('');
+
+  return hexId;
 }
 
 // your first API endpoint... 
@@ -122,9 +129,20 @@ app.get('/api/shorturl/:shortUrl', async (req, res) => {
 });
 
 //Exercise Tracker
+
+/* NOTES */
+/* I will add the MongoDB Atlas to this */
 const fakeDBUsers = [];
 const fakeDBExercises = [];
 const fakeDBLogs = [];
+
+const filterToDate = (logs, endDate) => {
+  return logs.filter(log => new Date(log.date) <= new Date(endDate));
+}
+
+const filterFromDate = (logs, startDate) => {
+  return logs.filter(log => new Date(log.date) >= new Date(startDate));
+}
 
 app.post('/api/users', (req, res) => {
   const { username } = req.body;
@@ -140,26 +158,81 @@ app.post('/api/users', (req, res) => {
 });
 
 app.post('/api/users/:_id/exercises', (req, res) => {
-  const exercisesId = req.params._id;
-  const { username, description, duration, date } = req.body;
+  const userId = req.params._id;
+  const { description, duration, date } = req.body;
 
-  console.log(username, exercisesId, description, duration, date)
+  const user = fakeDBUsers.find(user => user._id === userId);
 
-  var exercise = {
-    _id: exercisesId,
-    description: description,
-    duration: duration,
-    date: date === undefined ? new Date() : new Date(date)
+  var userExerciseObj = {
+    username: user.username,
+    description: description.toString(),
+    duration: Number(duration),
+    date: date === undefined ? new Date().toDateString() : new Date(date).toDateString(),
+    _id: user._id
+  }
+  
+  fakeDBExercises.push(userExerciseObj);
+
+  //Add to loggers
+  const userLogs = fakeDBLogs.find(user => user._id === userId);
+  
+  var logExerciseObj = { 
+    description: userExerciseObj.description, 
+    duration: userExerciseObj.duration, 
+    date: userExerciseObj.date 
   }
 
-  fakeDBExercises.push(exercise);
-  return res.json(exercise);
+  if(userLogs) {
+    userLogs.log.push(logExerciseObj);
+    userLogs.count + 1;
+  } else {
+    var userLogObj = { 
+      username: userExerciseObj.username, 
+      count: 1,
+      _id: userExerciseObj._id ,
+      log: [logExerciseObj] 
+    }
+
+    fakeDBLogs.push(userLogObj)
+  }
+
+  return res.json(userExerciseObj);
+});
+
+app.get('/api/users', (req, res) => {
+  return res.json(fakeDBUsers);
 });
 
 app.get('/api/users/:_id/logs', (req, res) => {
-  return res.json({ })
-});
+  const userId = req.params._id;  
+  const limit = Number(req.query.limit) || 0;
+  const from = req.query.from || new Date(0);
+  const to = req.query.to || new Date(Date.now())
 
+  console.log(limit, from, to)
+
+  const userLogs = fakeDBLogs.find(user => user._id === userId);
+
+  if(limit > userLogs.length) {
+    limit = userLogs.length;
+  }
+
+  if(limit !== 0) {
+    userLogs.log = userLogs.log.slice(0, limit);
+  }
+
+  /* 
+    if(from !== new Date(0)) {
+     userLogs.log = filterToDate(userLogs.log, from);
+    }
+
+    if(to !== new Date(Date.now)) {
+      userLogs.log = filterFromDate(userLogs.log, from);
+    }
+  
+  */
+  return res.json(userLogs)
+});
 // Listen on port set in environment variable or default to 3000
 var listener = app.listen(process.env.PORT || 3000, function () {
   console.log('Your app is listening on port ' + listener.address().port);
